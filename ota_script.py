@@ -5,18 +5,22 @@ start = "F9"
 ver_sion = "10"
 command = "06"
 
-i = 0
-k = 0
-j = 480
 
-m = 0 
-n = 2
-p = 1
 inital_list = []
 data_chunk = []
 chunk_arr =[]
 
+#############
+CMD_list = ("Open", "Close", "Ack", "Busy", "Reay", "Chunk", "Validate")
 
+# Open = 1
+# Close = 2
+# Ack = 3
+# Busy = 4
+# Ready = 5
+# Chunk = 6
+# Validate = 7
+#############
 
 #CRC
 crctable= [0x00, 0x91, 0xE3, 0x72, 0x07, 0x96,
@@ -54,18 +58,14 @@ def make_CRC( input_data, count):
 
     return((0xFF - fcs))
 
-if __name__ == "__main__":
-    
-    file_name = 'mbr.bin'
+def file_split(file):
+
+    print("########## file_split #############")
+
     Byte_chunk = 480
+    arr_len = 240
 
-    inital_list.append(start)
-    inital_list.append(ver_sion)
-    inital_list.append(command)
-
-    print("inital_list: " + str(inital_list))
-
-    with open(file_name, 'rb') as f:
+    with open(file, 'rb') as f:
         binary_data = f.read().hex()
         # hex_data = binary_data.hex()
         # process binary_data here
@@ -79,60 +79,141 @@ if __name__ == "__main__":
 
     file_size = len(binary_data)
 
+    i = 0
+    k = 0
+    j = 480
+
+    m = 0 
+    n = 2
+    p = 1
+
     data_chunk = []
     chunk_arr =[]
 
     while i < file_size:
-    
-        chunk = binary_data[i:j]  
-        # print("chuck: "+ str(chunk))
+        chunk = binary_data[i:j] 
+        print("chunk ID: " + str(k))
+        # print("chunk: "+ str(chunk))
 
         while m < Byte_chunk:
             # print("-----------------------------")
+            # print("m: " + str(m))
             # print("chunk chuck ID: " + str(p))
             # print("seperate into 2")
             chunk_chunk = chunk[m:n]
             chunk_arr.append(chunk_chunk)
+            # print("Chunk_arr: " + str(chunk_arr))
 
-            arr_len = 240
-            
-            # print("m: " + str(m))
             # print("loop: " + str(arr_len))
             # print("-----------------------------")
+
+            # Byte_chunk = Byte_chunk + 480
+
+            if (len(chunk_arr) == arr_len):
+                
+                print("into loop")
+                print("Chunk_arr: " + str(chunk_arr))
+                # Byte_chunk = Byte_chunk + 480
+                # arr_len =arr_len + 240
 
             m = m + 2
             n = n + 2
             p = p + 1
 
-            if (len(chunk_arr) == arr_len):
-                
-                print("into loop")
-                print("chunk_arr: ")
-
-                # chunk_arr.append(inital_list) extend
-                data_chunk.extend(inital_list) 
-                data_chunk.extend(chunk_arr) 
-
-                print (chunk_arr)
-
-                print ("data chunk: " + str(data_chunk))
-                print("length of chunk_arr: " + str(len(chunk_arr)))
-                
-                crc = make_CRC(data_chunk, len(data_chunk))
-                crc_str = '{:02X}'.format(crc)
-                print("crc: " + str(crc_str))
-                data_chunk.append(crc_str)
-                print ("data chunk last: " + str(data_chunk))
+        #     # chunk_arr.append(inital_list)
+        #     # data_chunk.extend(inital_list) 
+        #     # data_chunk.extend(chunk_arr) 
 
         i = i + 480
         j = j + 480
         k = k+1
 
-    #############################################
-    # print("\n")
-    # for t in range(10):
-    #     print("loop " + str(t))
-    #     print(data_chunk[t])
-    #     print("\n")
 
-        
+# if __name__ == "__main__":
+
+#     file_name = 'mbr.bin'
+
+#     file_split(file_name)
+#     Byte_chunk = 480
+
+#     inital_list.append(start)
+#     inital_list.append(ver_sion)
+#     inital_list.append(command)
+
+#     print("inital_list: " + str(inital_list))
+
+#     with open(file_name, 'rb') as f:
+#         binary_data = f.read().hex()
+#         # hex_data = binary_data.hex()
+#         # process binary_data here
+#         print("File contant:")
+#         # print(binary_data)
+#         # print("#########################")
+#         print("File length: ", end ="")
+#         print(len(binary_data)) 
+
+#     print("#########################")
+
+#     file_size = len(binary_data)
+
+#     data_chunk = []
+#     chunk_arr =[]
+
+#     while i < file_size:
+    
+#         chunk = binary_data[i:j]  
+#         # print("chuck: "+ str(chunk))
+
+#         while m < Byte_chunk:
+#             # print("-----------------------------")
+#             # print("chunk chuck ID: " + str(p))
+#             # print("seperate into 2")
+#             chunk_chunk = chunk[m:n]
+#             chunk_arr.append(chunk_chunk)
+
+#             arr_len = 240
+            
+#             # print("m: " + str(m))
+#             # print("loop: " + str(arr_len))
+#             # print("-----------------------------")
+
+#             m = m + 2
+#             n = n + 2
+#             p = p + 1
+
+#             if (len(chunk_arr) == arr_len):
+                
+#                 print("into loop")
+#                 print("chunk_arr: ")
+
+#                 # chunk_arr.append(inital_list) extend
+#                 data_chunk.extend(inital_list) 
+#                 data_chunk.extend(chunk_arr) 
+
+#                 print (chunk_arr)
+
+#                 print ("data chunk: " + str(data_chunk))
+#                 print("length of chunk_arr: " + str(len(chunk_arr)))
+                
+#                 crc = make_CRC(data_chunk, len(data_chunk))
+#                 crc_str = '{:02X}'.format(crc)
+#                 print("crc: " + str(crc_str))
+#                 data_chunk.append(crc_str)
+#                 print ("data chunk last: " + str(data_chunk))
+
+#         i = i + 480
+#         j = j + 480
+#         k = k+1
+
+#     #############################################
+#     # print("\n")
+#     # for t in range(10):
+#     #     print("loop " + str(t))
+#     #     print(data_chunk[t])
+#     #     print("\n")
+
+if __name__ == "__main__":
+
+    file_name = 'mbr.bin'
+    file_split(file_name)
+    print("\n*************END***************")
