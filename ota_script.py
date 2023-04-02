@@ -1,14 +1,18 @@
 from numpy import *
+import hashlib
 
 # values in HEX format
 start = "F9"
 ver_sion = "10"
 command = "06"
 
-
 inital_list = []
 data_chunk = []
 chunk_arr =[]
+
+inital_list.append(start)
+inital_list.append(ver_sion)
+inital_list.append(command)
 
 #############
 CMD_list = ("Open", "Close", "Ack", "Busy", "Reay", "Chunk", "Validate")
@@ -58,6 +62,16 @@ def make_CRC( input_data, count):
 
     return((0xFF - fcs))
 
+def gen_hash(filename):
+
+    hash_hex = hashlib.md5(filename.encode('UTF-8')).hexdigest()
+    print("Generated hash: " + hash_hex)
+    hash_arr = [hash_hex[i:i + 2] for i in range(0, len(hash_hex), 2)]
+    print("hash arr: " + str(hash_arr))
+    # 3535383133666262633965376431303065646537646431393162353034333437
+    # 55813fbbc9e7d100ede7dd191b504347
+    return hash_arr
+
 def file_split(file):
 
     print("########## file_split #############")
@@ -80,54 +94,38 @@ def file_split(file):
     file_size = len(binary_data)
 
     i = 0
-    k = 0
-    j = 480
+    k = 1
+    j = 240
 
-    m = 0 
-    n = 2
-    p = 1
-
-    data_chunk = []
     chunk_arr =[]
+    data_chunk = []
+    # data_chunk.extend(inital_list)
 
-    while i < file_size:
-        chunk = binary_data[i:j] 
-        print("chunk ID: " + str(k))
-        # print("chunk: "+ str(chunk))
+    sep_binary_data = [binary_data[i:i + 2] for i in range(0, len(binary_data), 2)]
+    # print("Seperated data: " + str(sep_binary_data))
+    print("Length of seperated data: " + str(len(sep_binary_data)))
+    print("Seperated data index 0: " + str(sep_binary_data[0]))
 
-        while m < Byte_chunk:
-            # print("-----------------------------")
-            # print("m: " + str(m))
-            # print("chunk chuck ID: " + str(p))
-            # print("seperate into 2")
-            chunk_chunk = chunk[m:n]
-            chunk_arr.append(chunk_chunk)
-            # print("Chunk_arr: " + str(chunk_arr))
+    while i < len(sep_binary_data):
+        
+        data_chunk.extend(inital_list)
+        print("data_chunk ID: " + str(k))
+        chunk_arr = sep_binary_data[i:j]
+        # print("chunk_arr: " + str(chunk_arr))
 
-            # print("loop: " + str(arr_len))
-            # print("-----------------------------")
+        data_chunk.extend(chunk_arr)
+        print("data_chunk: " + str(data_chunk))
 
-            # Byte_chunk = Byte_chunk + 480
-
-            if (len(chunk_arr) == arr_len):
-                
-                print("into loop")
-                print("Chunk_arr: " + str(chunk_arr))
-                # Byte_chunk = Byte_chunk + 480
-                # arr_len =arr_len + 240
-
-            m = m + 2
-            n = n + 2
-            p = p + 1
-
-        #     # chunk_arr.append(inital_list)
-        #     # data_chunk.extend(inital_list) 
-        #     # data_chunk.extend(chunk_arr) 
-
-        i = i + 480
-        j = j + 480
+        i = i + 240
+        j = j + 240
         k = k+1
 
+        chunk_arr.clear()
+        data_chunk.clear()
+
+
+def send_data():
+    
 
 # if __name__ == "__main__":
 
@@ -215,5 +213,8 @@ def file_split(file):
 if __name__ == "__main__":
 
     file_name = 'mbr.bin'
-    file_split(file_name)
+    # file_split(file_name)
+
+    genHash = gen_hash(file_name)
+
     print("\n*************END***************")
