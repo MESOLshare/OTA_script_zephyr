@@ -2,28 +2,37 @@ from numpy import *
 import hashlib
 
 # values in HEX format
-start = "F9"
-ver_sion = "10"
-command = "06"
+start       = "F9"
+ver_sion    = "10"
+command     = "06"
 
 inital_list = []
 data_chunk = []
 chunk_arr =[]
+CMD_arr = []
 
 inital_list.append(start)
 inital_list.append(ver_sion)
 inital_list.append(command)
 
 #############
-CMD_list = ("Open", "Close", "Ack", "Busy", "Reay", "Chunk", "Validate")
+FW_type     = ["MBR", "Bootloader", "Zephyr"]
+CMD_list    = ["Open", "Close", "Ack", "Busy", "Reay", "Chunk", "Validate"]
 
-# Open = 1
-# Close = 2
-# Ack = 3
-# Busy = 4
-# Ready = 5
-# Chunk = 6
-# Validate = 7
+CMD_Open        = 0x01
+CMD_Close       = 0x02
+CMD_Ack         = 0x03
+CMD_Busy        = 0x04
+CMD_Ready       = 0x05
+CMD_Chunk       = 0x06
+CMD_Validation  = 0x07
+
+FW_type_MBR     = 0x01
+FW_type_BOOT    = 0x02
+FW_type_Zephyr  = 0x03
+
+global file_size
+global genHash
 #############
 
 #CRC
@@ -65,19 +74,21 @@ def make_CRC( input_data, count):
 def gen_hash(filename):
 
     hash_hex = hashlib.md5(filename.encode('UTF-8')).hexdigest()
-    print("Generated hash: " + hash_hex)
+    # print("Generated hash: " + hash_hex)
     hash_arr = [hash_hex[i:i + 2] for i in range(0, len(hash_hex), 2)]
-    print("hash arr: " + str(hash_arr))
-    # 3535383133666262633965376431303065646537646431393162353034333437
+    # print("hash arr: " + str(hash_arr))
     # 55813fbbc9e7d100ede7dd191b504347
     return hash_arr
 
 def file_split(file):
 
+    global file_size 
+
     print("########## file_split #############")
 
-    Byte_chunk = 480
-    arr_len = 240
+    start_index = 0
+    end_index   = 240
+    Chunk_ID    = 1
 
     with open(file, 'rb') as f:
         binary_data = f.read().hex()
@@ -89,43 +100,170 @@ def file_split(file):
         print("File length: ", end ="")
         print(len(binary_data)) 
 
-    print("#########################")
+    print("###################################")
 
-    file_size = len(binary_data)
-
-    i = 0
-    k = 1
-    j = 240
-
-    chunk_arr =[]
-    data_chunk = []
-    # data_chunk.extend(inital_list)
+    file_size= len(binary_data)
 
     sep_binary_data = [binary_data[i:i + 2] for i in range(0, len(binary_data), 2)]
     # print("Seperated data: " + str(sep_binary_data))
     print("Length of seperated data: " + str(len(sep_binary_data)))
     print("Seperated data index 0: " + str(sep_binary_data[0]))
 
-    while i < len(sep_binary_data):
+    while start_index < len(sep_binary_data):
         
-        data_chunk.extend(inital_list)
-        print("data_chunk ID: " + str(k))
-        chunk_arr = sep_binary_data[i:j]
+        data_chunk.extend(inital_list)                          # 3 bytes
+        # print("data_chunk ID: " + str(Chunk_ID))           
+        chunk_arr = sep_binary_data[start_index:end_index]      # 240 bytes
         # print("chunk_arr: " + str(chunk_arr))
 
-        data_chunk.extend(chunk_arr)
-        print("data_chunk: " + str(data_chunk))
+        data_chunk.extend(chunk_arr)                            # 243 bytes
+        # print("data_chunk: " + str(data_chunk))
 
-        i = i + 240
-        j = j + 240
-        k = k+1
+        start_index = start_index + 240
+        end_index   = end_index + 240
+        Chunk_ID    = Chunk_ID + 1
 
         chunk_arr.clear()
         data_chunk.clear()
 
+def get_fW_type(fw_type):
 
-def send_data():
+    set_FW_type = 0x00
+
+    if   (fw_type == FW_type[0]):
+        # print("Param: " + str(fw_type))
+
+        set_FW_type = ''.join(f'{FW_type_MBR:04X}')
+        set_FW_type = [set_FW_type[i:i + 2] for i in range(0, len(set_FW_type), 2)]
+
+        return set_FW_type
+        
+    elif (fw_type == FW_type[1]):
+        # print("Param: " + str(fw_type))
+
+        set_FW_type = ''.join(f'{FW_type_BOOT:04X}')
+        set_FW_type = [set_FW_type[i:i + 2] for i in range(0, len(set_FW_type), 2)]
+
+        return set_FW_type
+
+    elif (fw_type == FW_type[2]):
+        # print("Param: " + str(fw_type))
+
+        set_FW_type = ''.join(f'{FW_type_Zephyr:04X}')
+        set_FW_type = [set_FW_type[i:i + 2] for i in range(0, len(set_FW_type), 2)]
+
+        return set_FW_type
     
+    else:
+
+        return 0
+
+def send_data(CMD_list_params):
+
+    global file_size 
+    global genHash
+
+    # print(str(CMD_list_params))
+    if   (CMD_list_params == CMD_list[0]): # open
+        # print(str(CMD_list_params))
+        # Open
+        # |  CMD  | Chunk ID | FW type | FW size | FW hash MD5 |
+        # |  4bit | 12bit    | 2byte   | 4byte   | 32byte      |
+
+        Chunk_ID = 0
+        
+        CMD_Chunk_ID = ( (Chunk_ID << 4) & 0xfff0) | (CMD_Open & 0x0f)
+        # CMD_Chunk_ID_hex = CMD_Chunk_ID.to_bytes(2, 'big')
+        CMD_Chunk_ID = ''.join(f'{CMD_Chunk_ID:04X}')
+        
+        CMD_Chunk_ID = [CMD_Chunk_ID[i:i + 2] for i in range(0, len(CMD_Chunk_ID), 2)]
+
+        CMD_arr.extend(inital_list)
+        CMD_arr.extend(CMD_Chunk_ID)
+
+        set_fw = get_fW_type("MBR")
+        # print("SET FW: " + str(set_fw))
+
+        CMD_arr.extend(set_fw)
+        # print(str(CMD_arr))
+
+        file_size = ''.join(f'{file_size:08X}')
+        file_size = [file_size[i:i + 2] for i in range(0, len(file_size), 2)]
+        # print("File size: " + str(file_size))
+
+        CMD_arr.extend(file_size)
+        # print(str(CMD_arr))
+        
+        CMD_arr.extend(genHash)
+        # print(str(CMD_arr))
+
+        crc = make_CRC(CMD_arr, len(CMD_arr))
+        crc_str = '{:02X}'.format(crc)
+        CMD_arr.append(crc_str)
+        print("CMD_Open_packet: " + str(CMD_arr))
+
+        # MBR
+        # Bootloader
+        # Zephyr
+
+    elif (CMD_list_params == CMD_list[1]): # close
+        print(str(CMD_list_params))
+        # close
+        # |  CMD  | Chunk ID |
+        # |  4bit | 12bit    |
+        Chunk_ID = 0
+
+        CMD_Chunk_ID = ( (Chunk_ID << 4) & 0xfff0) | (CMD_Close & 0x0f)
+        # CMD_Chunk_ID_hex = CMD_Chunk_ID.to_bytes(2, 'big')
+        CMD_Chunk_ID = ''.join(f'{CMD_Chunk_ID:04X}')
+        CMD_Chunk_ID = [CMD_Chunk_ID[i:i + 2] for i in range(0, len(CMD_Chunk_ID), 2)]
+
+        CMD_arr.extend(inital_list)
+        CMD_arr.extend(CMD_Chunk_ID)
+        print("CMD_Close_packet: " + str(CMD_arr))
+
+    elif (CMD_list_params == CMD_list[2]): # ack
+        print(str(CMD_list_params))
+        # Ack
+        # |  CMD  | Chunk ID | Command | Status |
+        # |  4bit | 12bit    | 1byte   | 1byte  |
+
+    elif (CMD_list_params == CMD_list[3]): # Busy
+        print(str(CMD_list_params))
+        # Busy
+        # |  CMD  | Chunk ID |
+        # |  4bit | 12bit    |
+
+    elif (CMD_list_params == CMD_list[4]): # ready
+        print(str(CMD_list_params))
+        # Ready
+        # |  CMD  | Chunk ID |
+        # |  4bit | 12bit    |
+
+    elif (CMD_list_params == CMD_list[5]): # Chunk
+        print(str(CMD_list_params))
+        # Chunk
+        # |  CMD  | Chunk ID | Chunk data |
+        # |  4bit | 12bit    | N-2        |
+
+
+
+    elif (CMD_list_params == CMD_list[6]): # validation
+        print(str(CMD_list_params))
+        # Validation
+        # |  CMD  | Chunk ID |
+        # |  4bit | 12bit    |
+
+if __name__ == "__main__":
+
+    file_name = 'mbr.bin'
+    file_split(file_name)
+
+    genHash = gen_hash(file_name)
+
+    send_data("Close")
+
+    print("\n*************END***************")
 
 # if __name__ == "__main__":
 
@@ -209,12 +347,3 @@ def send_data():
 #     #     print("loop " + str(t))
 #     #     print(data_chunk[t])
 #     #     print("\n")
-
-if __name__ == "__main__":
-
-    file_name = 'mbr.bin'
-    # file_split(file_name)
-
-    genHash = gen_hash(file_name)
-
-    print("\n*************END***************")
