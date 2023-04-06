@@ -3,7 +3,7 @@ import hashlib
 
 # values in HEX format
 start       = "F9"
-ver_sion    = "10"
+ver_sion    = "0A"
 
 inital_list = []
 data_chunk = []
@@ -32,6 +32,7 @@ FW_type_Zephyr  = 0x03
 global file_size
 global genHash
 global binary_data
+global ID_hex
 #############
 
 #CRC
@@ -74,10 +75,10 @@ def gen_hash(filename):
 
     hash_hex = hashlib.md5(filename.encode('UTF-8')).hexdigest()
     # print("Generated hash: " + str (hash_hex)) 
-    hash_arr = [hash_hex[i:i + 2] for i in range(0, len(hash_hex), 2)]
-    # print("hash arr: " + str(hash_arr))
+    # hash_arr = [hash_hex[i:i + 2] for i in range(0, len(hash_hex), 2)]
+    # print("hash arr: " + str(hash_hex))
     # 55813fbbc9e7d100ede7dd191b504347
-    return hash_arr
+    return hash_hex
 
 def file_split(file):
 
@@ -158,11 +159,35 @@ def get_fW_type(fw_type):
 
         return 0
 
+def ID_convert():
+
+    global ID_hex
+    print("ID conversion")
+
+    print("Enter Device ID: ", end="")
+    ID_int = int(input())
+    print("Entered Device ID: ", str(ID_int))
+
+    ID_str = ''.join(f'{ID_int:04X}')
+
+    print("ID_str: " + str(ID_str))
+
+    ID_hex = ID_str.zfill(8)
+
+    print("ID hex: " + str(ID_hex))
+    ID_hex = [ID_hex[i:i + 2] for i in range(0, len(ID_hex), 2)]
+    print("ID hex: " + str(ID_hex))
+
+    # ID_hex = 0
+    # ID_str = 0
+    # ID_int = 0
+
 def CMD_packet(CMD_list_params):
 
     global file_size
     global genHash
     global binary_data
+    global ID_hex
 
     # print(str(CMD_list_params))
     if   (CMD_list_params == CMD_list[0]): # open
@@ -175,11 +200,10 @@ def CMD_packet(CMD_list_params):
         CMD_open_pckt = []
 
         CMD_Chunk_ID = ( (Chunk_ID << 4) & 0xfff0) | (CMD_Open & 0x0f)
-        # CMD_Chunk_ID_hex = CMD_Chunk_ID.to_bytes(2, 'big')
         CMD_Chunk_ID = ''.join(f'{CMD_Chunk_ID:04X}')
         
         CMD_Chunk_ID = [CMD_Chunk_ID[i:i + 2] for i in range(0, len(CMD_Chunk_ID), 2)]
-        # print("CMD_Chunk_ID: " + str(CMD_Chunk_ID))
+        print("CMD_Chunk_ID: " + str(CMD_Chunk_ID))
 
         CMD_open_pckt.extend(inital_list)       # 3 byte
         Chunk_arr.extend(CMD_Chunk_ID)          # 3 + 2 byte
@@ -203,11 +227,12 @@ def CMD_packet(CMD_list_params):
         CMD_open_pckt_len = ''.join(f'{len(Chunk_arr):02X}')
         # print("length: " + str(CMD_open_pckt_len))
 
+        CMD_open_pckt.extend(ID_hex)
         CMD_open_pckt.append(CMD_open_pckt_len)
-        # print("CMD_open_pckt: " +str(CMD_open_pckt))
+        print("CMD_open_pckt1: " +str(CMD_open_pckt))
 
         CMD_open_pckt.extend(Chunk_arr)
-        # print("CMD_Open_packet: " + str(CMD_open_pckt))
+        print("CMD_Open_packet: " + str(CMD_open_pckt))
 
         crc = make_CRC(CMD_open_pckt, len(CMD_open_pckt))
         crc_str = '{:02X}'.format(crc)
@@ -219,11 +244,13 @@ def CMD_packet(CMD_list_params):
         # close
         # |  CMD  | Chunk ID |
         # |  4bit | 12bit    |
+
         Chunk_ID = 0
         CMD_close_pckt = []
 
         CMD_close_pckt.extend(inital_list)
         # print("inital_list: " + str(inital_list))
+        CMD_close_pckt.extend(ID_hex)
 
         CMD_Chunk_ID = ( (Chunk_ID << 4) & 0xfff0) | (CMD_Close & 0x0f)
         # CMD_Chunk_ID_hex = CMD_Chunk_ID.to_bytes(2, 'big')
@@ -238,11 +265,11 @@ def CMD_packet(CMD_list_params):
         CMD_close_pckt.extend(CMD_Chunk_ID)
 
 
-        # print("CMD_Close_packet: " + str(CMD_close_pckt))
+        print("CMD_Close_packet: " + str(CMD_close_pckt))
 
         crc = make_CRC(CMD_close_pckt, len(CMD_close_pckt))
         crc_str = '{:02X}'.format(crc)
-        # print("crc: " + crc_str)
+        print("crc: " + crc_str)
         CMD_close_pckt.append(crc_str)
         print("CMD_Close_packet: " + str(CMD_close_pckt))
 
@@ -323,94 +350,13 @@ if __name__ == "__main__":
 
     file_name = 'mbr.bin'
     file_split(file_name)
+    
+    ID_convert()
 
     genHash = gen_hash(file_name)
 
-    CMD_packet("Close")
+    # CMD_packet("Close")
     # CMD_packet("Chunk")
-    # CMD_packet("Open")
+    CMD_packet("Open")
 
     print("\n*************END***************")
-
-# if __name__ == "__main__":
-
-#     file_name = 'mbr.bin'
-
-#     file_split(file_name)
-#     Byte_chunk = 480
-
-#     inital_list.append(start)
-#     inital_list.append(ver_sion)
-#     inital_list.append(command)
-
-#     print("inital_list: " + str(inital_list))
-
-#     with open(file_name, 'rb') as f:
-#         binary_data = f.read().hex()
-#         # hex_data = binary_data.hex()
-#         # process binary_data here
-#         print("File contant:")
-#         # print(binary_data)
-#         # print("#########################")
-#         print("File length: ", end ="")
-#         print(len(binary_data)) 
-
-#     print("#########################")
-
-#     file_size = len(binary_data)
-
-#     data_chunk = []
-#     chunk_arr =[]
-
-#     while i < file_size:
-    
-#         chunk = binary_data[i:j]  
-#         # print("chuck: "+ str(chunk))
-
-#         while m < Byte_chunk:
-#             # print("-----------------------------")
-#             # print("chunk chuck ID: " + str(p))
-#             # print("seperate into 2")
-#             chunk_chunk = chunk[m:n]
-#             chunk_arr.append(chunk_chunk)
-
-#             arr_len = 240
-            
-#             # print("m: " + str(m))
-#             # print("loop: " + str(arr_len))
-#             # print("-----------------------------")
-
-#             m = m + 2
-#             n = n + 2
-#             p = p + 1
-
-#             if (len(chunk_arr) == arr_len):
-                
-#                 print("into loop")
-#                 print("chunk_arr: ")
-
-#                 # chunk_arr.append(inital_list) extend
-#                 data_chunk.extend(inital_list) 
-#                 data_chunk.extend(chunk_arr) 
-
-#                 print (chunk_arr)
-
-#                 print ("data chunk: " + str(data_chunk))
-#                 print("length of chunk_arr: " + str(len(chunk_arr)))
-                
-#                 crc = make_CRC(data_chunk, len(data_chunk))
-#                 crc_str = '{:02X}'.format(crc)
-#                 print("crc: " + str(crc_str))
-#                 data_chunk.append(crc_str)
-#                 print ("data chunk last: " + str(data_chunk))
-
-#         i = i + 480
-#         j = j + 480
-#         k = k+1
-
-#     #############################################
-#     # print("\n")
-#     # for t in range(10):
-#     #     print("loop " + str(t))
-#     #     print(data_chunk[t])
-#     #     print("\n")
