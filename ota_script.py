@@ -326,9 +326,9 @@ if __name__ == "__main__":
 
     genHash = gen_hash(file_name)
 
-    # CMD_packet("Close")
+    CMD_packet("Close")
     # CMD_packet("Chunk")
-    CMD_packet("Open")
+    # CMD_packet("Open")
 
     print("\n*************END***************")
 
